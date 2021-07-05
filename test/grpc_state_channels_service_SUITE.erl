@@ -279,7 +279,7 @@ is_valid_sc_test(Config) ->
     {ok, #{
         headers := Headers,
         result := #{
-            msg := {is_valid_resp, ResponseMsg},
+            msg := {sc_is_valid_resp, ResponseMsg},
             height := _ResponseHeight,
             signature := _ResponseSig
         } = Result
@@ -297,6 +297,7 @@ is_valid_sc_test(Config) ->
     ?assertEqual(HttpStatus, <<"200">>),
     ?assertEqual(ResponseMsg#{sc_id := ActiveSCID, valid := true, reason := <<>>}, ResponseMsg),
 
+    %%    timer:sleep(20000),
     ok.
 
 close_sc_test(Config) ->
@@ -387,7 +388,7 @@ close_sc_test(Config) ->
     {ok, #{
         headers := Headers,
         result := #{
-            msg := {close_resp, ResponseMsg},
+            msg := {sc_close_resp, ResponseMsg},
             height := _ResponseHeight,
             signature := _ResponseSig
         } = Result
@@ -508,19 +509,26 @@ follow_sc_test(Config) ->
     {ok, Stream} = grpc_client:new_stream(
         Connection,
         'helium.gateway',
-        follow,
+        stream,
         gateway_client_pb
     ),
 
     %% setup the follows for the two SCs
     ?assertEqual(ID1, ActiveSCID),
+
     ok = grpc_client:send(Stream, #{
-        sc_id => ID1,
-        owner => blockchain_ledger_state_channel_v1:owner(SC1)
+        msg =>
+            {follow_req, #{
+                sc_id => ID1,
+                owner => blockchain_ledger_state_channel_v1:owner(SC1)
+            }}
     }),
     ok = grpc_client:send(Stream, #{
-        sc_id => ID2,
-        owner => blockchain_ledger_state_channel_v1:owner(SC2)
+        msg =>
+            {follow_req, #{
+                sc_id => ID2,
+                owner => blockchain_ledger_state_channel_v1:owner(SC2)
+            }}
     }),
     ok = timer:sleep(timer:seconds(2)),
 

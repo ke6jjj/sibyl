@@ -14,8 +14,10 @@
     make_event/1,
     make_event/2,
     make_sc_topic/1,
+    make_poc_topic/1,
     encode_gateway_resp_v1/3,
     to_routing_pb/1,
+    address_data/1,
     ensure/2,
     ensure/3
 ]).
@@ -31,19 +33,24 @@ make_event(EventType, EventPayload) ->
 make_sc_topic(SCID) ->
     <<?EVENT_STATE_CHANNEL_UPDATE/binary, SCID/binary>>.
 
+make_poc_topic(GatewayAddr) ->
+    <<?EVENT_POC_NOTIFICATION/binary, GatewayAddr/binary>>.
+
 -spec encode_gateway_resp_v1(
     gateway_resp_type(),
     non_neg_integer(),
     function()
 ) -> gateway_pb:gateway_resp_v1_pb().
 encode_gateway_resp_v1(#gateway_sc_is_valid_resp_v1_pb{} = Msg, Height, SigFun) ->
-    do_encode_gateway_resp_v1({is_valid_resp, Msg}, Height, SigFun);
+    do_encode_gateway_resp_v1({sc_is_valid_resp, Msg}, Height, SigFun);
 encode_gateway_resp_v1(#gateway_sc_close_resp_v1_pb{} = Msg, Height, SigFun) ->
-    do_encode_gateway_resp_v1({close_resp, Msg}, Height, SigFun);
+    do_encode_gateway_resp_v1({sc_close_resp, Msg}, Height, SigFun);
 encode_gateway_resp_v1(#gateway_sc_follow_streamed_resp_v1_pb{} = Msg, Height, SigFun) ->
-    do_encode_gateway_resp_v1({follow_streamed_resp, Msg}, Height, SigFun);
+    do_encode_gateway_resp_v1({sc_follow_streamed_resp, Msg}, Height, SigFun);
 encode_gateway_resp_v1(#gateway_routing_streamed_resp_v1_pb{} = Msg, Height, SigFun) ->
-    do_encode_gateway_resp_v1({routing_streamed_resp, Msg}, Height, SigFun).
+    do_encode_gateway_resp_v1({routing_streamed_resp, Msg}, Height, SigFun);
+encode_gateway_resp_v1(#gateway_poc_challenge_notification_resp_v1_pb{} = Msg, Height, SigFun) ->
+    do_encode_gateway_resp_v1({poc_challenge_resp, Msg}, Height, SigFun).
 
 -spec to_routing_pb(blockchain_ledger_routing_v1:routing()) -> gateway_pb:gateway_routing_pb().
 to_routing_pb(Route) ->
