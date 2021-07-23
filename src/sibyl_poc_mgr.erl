@@ -122,40 +122,44 @@ run_poc_targetting(ChallengerAddr, Key, Ledger, BlockHash, Vars) ->
     %% contend and deal with selected cells not containing any GWs
     Entropy = <<Key/binary, BlockHash/binary>>,
     RandState = blockchain_utils:rand_state(Entropy),
-    {ok, {HexList, Hex, HexRandState}} = blockchain_poc_target_v4:target_zone(RandState, Ledger),
-    %% get all GWs in this zone
-    {ok, ZoneGWs} = blockchain_poc_target_v4:gateways_for_zone(
-        ChallengerAddr,
-        Ledger,
-        Vars,
-        HexList,
-        [{Hex, HexRandState}]
-    ),
-
-    %% create the notification
-    case sibyl_utils:address_data([ChallengerAddr]) of
-        [] ->
-            %% hmmm we have no public address for the challenger's pub key
-            %% what to do ?
-            ok;
-        [ChallengerRoutingAddress] ->
-            {ok, CurHeight} = blockchain_ledger_v1:current_height(Ledger),
-            NotificationPB = #gateway_poc_challenge_notification_resp_v1_pb{
-                challenger = ChallengerRoutingAddress,
-                block_hash = BlockHash,
-                onion_key_hash = Key
-            },
-            Notification = sibyl_utils:encode_gateway_resp_v1(
-                NotificationPB,
-                CurHeight,
-                sibyl_mgr:sigfun()
+    case blockchain_poc_target_v4:target_zone(RandState, Ledger) of
+        {error, _} ->
+            noop;
+        {ok, {HexList, Hex, HexRandState}} ->
+            %% get all GWs in this zone
+            {ok, ZoneGWs} = blockchain_poc_target_v4:gateways_for_zone(
+                ChallengerAddr,
+                Ledger,
+                Vars,
+                HexList,
+                [{Hex, HexRandState}]
             ),
-            %% send the notification to all the GWs in the zone, informing them they might be being challenged
-            lists:foreach(
-                fun(GW) ->
-                    Topic = sibyl_utils:make_poc_topic(GW),
-                    sibyl_bus:pub(Topic, Notification)
-                end,
-                ZoneGWs
-            )
+
+            %% create the notification
+            case sibyl_utils:address_data([ChallengerAddr]) of
+                [] ->
+                    %% hmmm we have no public address for the challenger's pub key
+                    %% what to do ?
+                    ok;
+                [ChallengerRoutingAddress] ->
+                    {ok, CurHeight} = blockchain_ledger_v1:current_height(Ledger),
+                    NotificationPB = #gateway_poc_challenge_notification_resp_v1_pb{
+                        challenger = ChallengerRoutingAddress,
+                        block_hash = BlockHash,
+                        onion_key_hash = Key
+                    },
+                    Notification = sibyl_utils:encode_gateway_resp_v1(
+                        NotificationPB,
+                        CurHeight,
+                        sibyl_mgr:sigfun()
+                    ),
+                    %% send the notification to all the GWs in the zone, informing them they might be being challenged
+                    lists:foreach(
+                        fun(GW) ->
+                            Topic = sibyl_utils:make_poc_topic(GW),
+                            sibyl_bus:pub(Topic, Notification)
+                        end,
+                        ZoneGWs
+                    )
+            end
     end.
